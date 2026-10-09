@@ -1,0 +1,69 @@
+USE DIRESA_PERU;
+GO
+
+SELECT
+    i.name AS INDICE,
+    i.type_desc AS TIPO,
+    c.name AS COLUMNA,
+    ic.key_ordinal AS ORDEN_CLAVE
+FROM sys.indexes i
+JOIN sys.index_columns ic
+    ON i.object_id = ic.object_id
+    AND i.index_id = ic.index_id
+JOIN sys.columns c
+    ON ic.object_id = c.object_id
+    AND ic.column_id = c.column_id
+WHERE i.object_id = OBJECT_ID('dbo.PRESTACIONES')
+ORDER BY i.name, ic.key_ordinal;
+GO
+-----Antes del índice
+
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+GO
+
+SELECT
+    ID_REGISTRO_REL,
+    FECHA_ATENCION,
+    EDAD_DIAS,
+    SEXO,
+    PESO
+FROM dbo.PRESTACIONES
+WHERE FECHA_ATENCION >= '2022-06-01'
+  AND FECHA_ATENCION <  '2022-07-01';
+GO
+
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+GO
+
+---Creamos índice
+
+CREATE NONCLUSTERED INDEX IX_PRESTACIONES_FECHA_ATENCION
+ON dbo.PRESTACIONES (FECHA_ATENCION)
+INCLUDE (ID_REGISTRO_REL, EDAD_DIAS, SEXO, PESO);
+GO
+
+----Después del índice
+
+SET STATISTICS IO ON;
+SET STATISTICS TIME ON;
+GO
+
+SELECT
+    ID_REGISTRO_REL,
+    FECHA_ATENCION,
+    EDAD_DIAS,
+    SEXO,
+    PESO
+FROM dbo.PRESTACIONES
+WHERE FECHA_ATENCION >= '2022-06-01'
+  AND FECHA_ATENCION <  '2022-07-01';
+GO
+
+SET STATISTICS IO OFF;
+SET STATISTICS TIME OFF;
+GO
+
+
+

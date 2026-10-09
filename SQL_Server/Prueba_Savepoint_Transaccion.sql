@@ -1,0 +1,59 @@
+USE DIRESA_PERU;
+GO
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    INSERT INTO dbo.AFILIADOS
+    (
+        CODIGO_ANONIMIZADO,
+        EDAD,
+        SEXO,
+        UBIGEO,
+        FECHA_AFILIADOS_SIS
+    )
+    VALUES
+    (
+        'PRUEBA_SAVEPOINT01',
+        30,
+        'F',
+        '010101',
+        '2025-01-15'
+    );
+
+
+    SAVE TRANSACTION PuntoAfiliado;
+
+
+    UPDATE dbo.AFILIADOS
+    SET EDAD = 99
+    WHERE CODIGO_ANONIMIZADO = 'PRUEBA_SAVEPOINT01';
+
+    ROLLBACK TRANSACTION PuntoAfiliado;
+
+    COMMIT TRANSACTION;
+
+    SELECT 'SAVEPOINT aplicado correctamente.' AS Mensaje;
+
+END TRY
+BEGIN CATCH
+
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+
+    SELECT
+        ERROR_NUMBER() AS NumeroError,
+        ERROR_MESSAGE() AS MensajeError;
+
+END CATCH;
+GO
+
+---
+SELECT
+    CODIGO_ANONIMIZADO,
+    EDAD,
+    SEXO,
+    UBIGEO,
+    FECHA_AFILIADOS_SIS
+FROM dbo.AFILIADOS
+WHERE CODIGO_ANONIMIZADO = 'PRUEBA_SAVEPOINT01';

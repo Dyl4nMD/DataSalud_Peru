@@ -1,0 +1,408 @@
+USE master;
+GO
+
+CREATE DATABASE DW_DataSalud;
+GO
+
+USE DW_DataSalud;
+GO
+
+SELECT DB_NAME() AS BaseActual;
+GO
+
+
+------
+CREATE TABLE dbo.DimTiempo (
+    IdTiempo INT NOT NULL PRIMARY KEY,
+    Fecha DATE NOT NULL UNIQUE,
+    Dia TINYINT NOT NULL,
+    Mes TINYINT NOT NULL,
+    NombreMes VARCHAR(15) NOT NULL,
+    Trimestre TINYINT NOT NULL,
+    Anio SMALLINT NOT NULL
+);
+GO
+
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE,
+    IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'DimTiempo'
+ORDER BY ORDINAL_POSITION;
+
+
+
+SELECT
+    MIN(Fecha) AS FechaMinima,
+    MAX(Fecha) AS FechaMaxima
+FROM (
+    SELECT FECHA_ATENCION AS Fecha
+    FROM DIRESA_PERU.dbo.PRESTACIONES
+
+    UNION ALL
+
+    SELECT FECHA_CORTE
+    FROM DIRESA_PERU.dbo.ATENCIONES_DIABETES
+
+    UNION ALL
+
+    SELECT FECHA_PRIMER_DX
+    FROM DIRESA_PERU.dbo.ATENCIONES_DIABETES
+
+    UNION ALL
+
+    SELECT FECHA_AFILIADOS_SIS
+    FROM DIRESA_PERU.dbo.AFILIADOS
+) F
+WHERE Fecha IS NOT NULL;
+
+
+
+----
+
+DECLARE @Fecha DATE = '2018-01-01';
+DECLARE @FechaFin DATE = '2026-07-14';
+
+WHILE @Fecha <= @FechaFin
+BEGIN
+    INSERT INTO dbo.DimTiempo
+    (
+        IdTiempo,
+        Fecha,
+        Dia,
+        Mes,
+        NombreMes,
+        Trimestre,
+        Anio
+    )
+    VALUES
+    (
+        YEAR(@Fecha) * 10000 + MONTH(@Fecha) * 100 + DAY(@Fecha),
+        @Fecha,
+        DAY(@Fecha),
+        MONTH(@Fecha),
+        CASE MONTH(@Fecha)
+            WHEN 1 THEN 'Enero'
+            WHEN 2 THEN 'Febrero'
+            WHEN 3 THEN 'Marzo'
+            WHEN 4 THEN 'Abril'
+            WHEN 5 THEN 'Mayo'
+            WHEN 6 THEN 'Junio'
+            WHEN 7 THEN 'Julio'
+            WHEN 8 THEN 'Agosto'
+            WHEN 9 THEN 'Septiembre'
+            WHEN 10 THEN 'Octubre'
+            WHEN 11 THEN 'Noviembre'
+            WHEN 12 THEN 'Diciembre'
+        END,
+        DATEPART(QUARTER, @Fecha),
+        YEAR(@Fecha)
+    );
+
+    SET @Fecha = DATEADD(DAY, 1, @Fecha);
+END;
+GO
+
+
+---
+
+SELECT
+    COUNT(*) AS TotalFechas,
+    MIN(Fecha) AS FechaMinima,
+    MAX(Fecha) AS FechaMaxima
+FROM dbo.DimTiempo;
+
+SELECT TOP 10 *
+FROM dbo.DimTiempo
+ORDER BY Fecha;
+
+
+SELECT
+    TABLE_NAME,
+    COLUMN_NAME,
+    DATA_TYPE
+FROM DIRESA_PERU.INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME IN ('UBIGEO', 'UBIGEO_2')
+ORDER BY TABLE_NAME, ORDINAL_POSITION;
+
+
+-----
+SELECT 
+    'UBIGEO' AS Tabla,
+    COUNT(*) AS TotalRegistros,
+    COUNT(DISTINCT UBIGEO) AS UbigeosUnicos
+FROM DIRESA_PERU.dbo.UBIGEO
+
+UNION ALL
+
+SELECT 
+    'UBIGEO_2',
+    COUNT(*),
+    COUNT(DISTINCT UBIGEO)
+FROM DIRESA_PERU.dbo.UBIGEO_2;
+
+----
+
+
+SELECT TOP 5 *
+FROM DIRESA_PERU.dbo.UBIGEO;
+
+SELECT TOP 5 *
+FROM DIRESA_PERU.dbo.UBIGEO_2;
+
+
+----
+
+SELECT COUNT(*) AS UbigeosCompartidos
+FROM DIRESA_PERU.dbo.UBIGEO U1
+INNER JOIN DIRESA_PERU.dbo.UBIGEO_2 U2
+    ON U1.UBIGEO = U2.UBIGEO;
+
+----
+
+SELECT TOP 10
+    U1.UBIGEO,
+    U1.DEPARTAMENTO AS Departamento_1,
+    U1.PROVINCIA AS Provincia_1,
+    U1.DISTRITO AS Distrito_1,
+    U2.DEPARTAMENTO AS Departamento_2,
+    U2.PROVINCIA AS Provincia_2,
+    U2.DISTRITO AS Distrito_2
+FROM DIRESA_PERU.dbo.UBIGEO U1
+INNER JOIN DIRESA_PERU.dbo.UBIGEO_2 U2
+    ON U1.UBIGEO = U2.UBIGEO;
+
+----
+SELECT COUNT(*) AS UbigeosConDiferencias
+FROM DIRESA_PERU.dbo.UBIGEO U1
+INNER JOIN DIRESA_PERU.dbo.UBIGEO_2 U2
+    ON U1.UBIGEO = U2.UBIGEO
+WHERE
+    U1.DEPARTAMENTO <> U2.DEPARTAMENTO
+    OR U1.PROVINCIA <> U2.PROVINCIA
+    OR U1.DISTRITO <> U2.DISTRITO;
+
+
+----
+
+USE DW_DataSalud;
+GO
+
+CREATE TABLE dbo.DimUbicacion (
+    IdUbicacion INT IDENTITY(1,1) PRIMARY KEY,
+    Ubigeo VARCHAR(10) NOT NULL UNIQUE,
+    Departamento NVARCHAR(100) NOT NULL,
+    Provincia NVARCHAR(100) NOT NULL,
+    Distrito NVARCHAR(100) NOT NULL
+);
+GO
+
+-----
+
+
+INSERT INTO dbo.DimUbicacion
+(
+    Ubigeo,
+    Departamento,
+    Provincia,
+    Distrito
+)
+SELECT
+    UBIGEO,
+    DEPARTAMENTO,
+    PROVINCIA,
+    DISTRITO
+FROM DIRESA_PERU.dbo.UBIGEO
+
+UNION
+
+SELECT
+    UBIGEO,
+    DEPARTAMENTO,
+    PROVINCIA,
+    DISTRITO
+FROM DIRESA_PERU.dbo.UBIGEO_2;
+GO
+
+----
+
+SELECT COUNT(*) AS TotalUbicaciones
+FROM dbo.DimUbicacion;
+
+SELECT TOP 10 *
+FROM dbo.DimUbicacion
+ORDER BY Ubigeo;
+
+----
+
+SELECT
+    COUNT(DISTINCT CODIGO_SERV_PRESTACIONAL) AS ServiciosUnicos,
+    COUNT(DISTINCT SERVICIO_PRESTACIONAL) AS DescripcionesUnicas
+FROM DIRESA_PERU.dbo.PRESTACIONES;
+
+SELECT TOP 10
+    CODIGO_SERV_PRESTACIONAL,
+    SERVICIO_PRESTACIONAL,
+    NIVEL_EESS
+FROM DIRESA_PERU.dbo.PRESTACIONES
+ORDER BY CODIGO_SERV_PRESTACIONAL;
+
+---
+
+SELECT
+    CODIGO_SERV_PRESTACIONAL,
+    SERVICIO_PRESTACIONAL,
+    COUNT(*) AS CantidadRegistros
+FROM DIRESA_PERU.dbo.PRESTACIONES
+WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+GROUP BY
+    CODIGO_SERV_PRESTACIONAL,
+    SERVICIO_PRESTACIONAL
+ORDER BY CODIGO_SERV_PRESTACIONAL;
+
+
+---
+
+CREATE TABLE dbo.DimServicio (
+    IdServicio INT IDENTITY(1,1) PRIMARY KEY,
+    CodigoServicio VARCHAR(20) NOT NULL UNIQUE,
+    ServicioPrestacional NVARCHAR(255) NOT NULL
+);
+GO
+
+
+INSERT INTO dbo.DimServicio (
+    CodigoServicio,
+    ServicioPrestacional
+)
+SELECT DISTINCT
+    CODIGO_SERV_PRESTACIONAL,
+    SERVICIO_PRESTACIONAL
+FROM DIRESA_PERU.dbo.PRESTACIONES
+WHERE CODIGO_SERV_PRESTACIONAL <> '001';
+GO
+
+
+SELECT COUNT(*) AS TotalServicios
+FROM dbo.DimServicio;
+
+SELECT *
+FROM dbo.DimServicio
+ORDER BY CodigoServicio;
+
+
+-----
+
+SELECT
+    COUNT(*) AS TotalPrestaciones,
+    COUNT(DISTINCT CODIGO_ANONIMIZADO) AS RecienNacidosUnicos
+FROM DIRESA_PERU.dbo.PRESTACIONES
+WHERE CODIGO_SERV_PRESTACIONAL <> '001';
+
+SELECT TOP 10
+    CODIGO_ANONIMIZADO,
+    COUNT(*) AS CantidadPrestaciones,
+    MIN(EDAD_DIAS) AS EdadMinima,
+    MAX(EDAD_DIAS) AS EdadMaxima,
+    MIN(PESO) AS PesoMinimo,
+    MAX(PESO) AS PesoMaximo
+FROM DIRESA_PERU.dbo.PRESTACIONES
+WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+GROUP BY CODIGO_ANONIMIZADO
+HAVING COUNT(*) > 1
+ORDER BY CantidadPrestaciones DESC;
+
+
+SELECT COUNT(*) AS RecienNacidosConSexoInconsistente
+FROM (
+    SELECT CODIGO_ANONIMIZADO
+    FROM DIRESA_PERU.dbo.PRESTACIONES
+    WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+    GROUP BY CODIGO_ANONIMIZADO
+    HAVING COUNT(DISTINCT SEXO) > 1
+) X;
+
+
+SELECT
+    CODIGO_ANONIMIZADO,
+    STRING_AGG(CAST(SEXO AS VARCHAR(20)), ', ') AS ValoresSexo,
+    COUNT(*) AS CantidadRegistros
+FROM (
+    SELECT DISTINCT
+        CODIGO_ANONIMIZADO,
+        SEXO
+    FROM DIRESA_PERU.dbo.PRESTACIONES
+    WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+) X
+GROUP BY CODIGO_ANONIMIZADO
+HAVING COUNT(*) > 1;
+
+    SELECT
+        SEXO,
+        COUNT(*) AS Cantidad
+    FROM DIRESA_PERU.dbo.PRESTACIONES
+    WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+    GROUP BY SEXO
+    ORDER BY SEXO;
+
+
+
+    CREATE TABLE dbo.DimRecienNacido (
+    IdRecienNacido INT IDENTITY(1,1) PRIMARY KEY,
+    CodigoAnonimizado VARCHAR(100) NOT NULL UNIQUE,
+    Sexo VARCHAR(20) NOT NULL
+);
+GO
+
+
+INSERT INTO dbo.DimRecienNacido (
+    CodigoAnonimizado,
+    Sexo
+)
+SELECT
+    CODIGO_ANONIMIZADO,
+    CASE
+        WHEN COUNT(DISTINCT SEXO) = 1 THEN MAX(SEXO)
+        ELSE 'NO DETERMINADO'
+    END
+FROM DIRESA_PERU.dbo.PRESTACIONES
+WHERE CODIGO_SERV_PRESTACIONAL <> '001'
+GROUP BY CODIGO_ANONIMIZADO;
+GO
+
+
+---
+
+SELECT COUNT(*) AS TotalRecienNacidos
+FROM dbo.DimRecienNacido;
+
+SELECT
+    Sexo,
+    COUNT(*) AS Cantidad
+FROM dbo.DimRecienNacido
+GROUP BY Sexo
+ORDER BY Sexo;
+
+----
+SELECT
+    COUNT(*) AS PrestacionesTotales,
+    SUM(CASE WHEN T.IdTiempo IS NULL THEN 1 ELSE 0 END) AS SinTiempo,
+    SUM(CASE WHEN U.IdUbicacion IS NULL THEN 1 ELSE 0 END) AS SinUbicacion,
+    SUM(CASE WHEN S.IdServicio IS NULL THEN 1 ELSE 0 END) AS SinServicio,
+    SUM(CASE WHEN RN.IdRecienNacido IS NULL THEN 1 ELSE 0 END) AS SinRecienNacido
+FROM DIRESA_PERU.dbo.PRESTACIONES P
+
+LEFT JOIN DW_DataSalud.dbo.DimTiempo T
+    ON T.Fecha = P.FECHA_ATENCION
+
+LEFT JOIN DW_DataSalud.dbo.DimUbicacion U
+    ON U.Ubigeo = P.UBIGEO
+
+LEFT JOIN DW_DataSalud.dbo.DimServicio S
+    ON S.CodigoServicio = P.CODIGO_SERV_PRESTACIONAL
+
+LEFT JOIN DW_DataSalud.dbo.DimRecienNacido RN
+    ON RN.CodigoAnonimizado = P.CODIGO_ANONIMIZADO
+
+WHERE P.CODIGO_SERV_PRESTACIONAL <> '001';

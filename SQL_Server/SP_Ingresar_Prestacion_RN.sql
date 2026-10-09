@@ -1,0 +1,184 @@
+USE DIRESA_PERU;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.SP_INGRESAR_PRESTACION_RN
+    @FECHA_CORTE DATE,
+    @ID_REGISTRO_REL INT,
+    @CODIGO_ANONIMIZADO VARCHAR(64),
+    @UBIGEO VARCHAR(6),
+    @NIVEL_EESS VARCHAR(1),
+    @CODIGO_SERV_PRESTACIONAL VARCHAR(3),
+    @SERVICIO_PRESTACIONAL NVARCHAR(100),
+    @DIAS_HOSP INT,
+    @EDAD_DIAS INT,
+    @FECHA_ATENCION DATE,
+    @SEXO VARCHAR(10),
+    @PESO DECIMAL(4,2) = NULL,
+    @ATE_CAPITA VARCHAR(1)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+       
+        IF EXISTS (
+            SELECT 1
+            FROM dbo.PRESTACIONES
+            WHERE ID_REGISTRO_REL = @ID_REGISTRO_REL
+        )
+        BEGIN
+            ROLLBACK;
+            SELECT 'Error: el ID_REGISTRO_REL ya se encuentra registrado.' AS Mensaje;
+            RETURN;
+        END;
+
+    
+        IF @DIAS_HOSP < 0
+           OR @EDAD_DIAS < 0
+           OR @PESO < 0
+        BEGIN
+            ROLLBACK;
+            SELECT 'Error: los dias, edad o peso no pueden ser negativos.' AS Mensaje;
+            RETURN;
+        END;
+
+        
+        SAVE TRANSACTION PuntoPrestacion;
+
+        INSERT INTO dbo.PRESTACIONES
+        (
+            FECHA_CORTE,
+            ID_REGISTRO_REL,
+            CODIGO_ANONIMIZADO,
+            UBIGEO,
+            NIVEL_EESS,
+            CODIGO_SERV_PRESTACIONAL,
+            SERVICIO_PRESTACIONAL,
+            DIAS_HOSP,
+            EDAD_DIAS,
+            FECHA_ATENCION,
+            SEXO,
+            PESO,
+            ATE_CAPITA
+        )
+        VALUES
+        (
+            @FECHA_CORTE,
+            @ID_REGISTRO_REL,
+            @CODIGO_ANONIMIZADO,
+            @UBIGEO,
+            @NIVEL_EESS,
+            @CODIGO_SERV_PRESTACIONAL,
+            @SERVICIO_PRESTACIONAL,
+            @DIAS_HOSP,
+            @EDAD_DIAS,
+            @FECHA_ATENCION,
+            @SEXO,
+            @PESO,
+            @ATE_CAPITA
+        );
+
+        COMMIT;
+
+        SELECT
+            'Prestacion registrada correctamente.' AS Mensaje,
+            @ID_REGISTRO_REL AS ID_REGISTRO_REL;
+
+    END TRY
+
+    BEGIN CATCH
+
+        IF @@TRANCOUNT > 0
+            ROLLBACK;
+
+        SELECT
+            ERROR_NUMBER() AS NumeroError,
+            ERROR_MESSAGE() AS MensajeError;
+
+    END CATCH;
+END;
+GO
+
+
+SELECT *
+FROM dbo.PRESTACIONES
+WHERE ID_REGISTRO_REL = 999999999;
+
+
+
+EXEC dbo.SP_INGRESAR_PRESTACION_RN
+    @FECHA_CORTE = '2025-09-18',
+    @ID_REGISTRO_REL = 999999999,
+    @CODIGO_ANONIMIZADO = 'PRUEBA_RN001',
+    @UBIGEO = '010101',
+    @NIVEL_EESS = '1',
+    @CODIGO_SERV_PRESTACIONAL = '001',
+    @SERVICIO_PRESTACIONAL = 'PRUEBA PRESTACION',
+    @DIAS_HOSP = 2,
+    @EDAD_DIAS = 10,
+    @FECHA_ATENCION = '2025-09-10',
+    @SEXO = 'F',
+    @PESO = 3.20,
+    @ATE_CAPITA = 'N';
+
+
+
+EXEC dbo.SP_INGRESAR_PRESTACION_RN
+    @FECHA_CORTE = '2025-09-18',
+    @ID_REGISTRO_REL = 999999999,
+    @CODIGO_ANONIMIZADO = 'PRUEBA_RN001',
+    @UBIGEO = '100101',
+    @NIVEL_EESS = '1',
+    @CODIGO_SERV_PRESTACIONAL = '001',
+    @SERVICIO_PRESTACIONAL = 'PRUEBA PRESTACION',
+    @DIAS_HOSP = 2,
+    @EDAD_DIAS = 10,
+    @FECHA_ATENCION = '2025-09-10',
+    @SEXO = 'F',
+    @PESO = 3.20,
+    @ATE_CAPITA = 'N';
+
+    SELECT *
+FROM dbo.PRESTACIONES
+WHERE ID_REGISTRO_REL = 999999999;
+----------
+
+BEGIN TRANSACTION;
+
+SELECT 
+    ID_REGISTRO_REL,
+    SERVICIO_PRESTACIONAL,
+    PESO
+FROM dbo.PRESTACIONES
+WHERE ID_REGISTRO_REL = 999999999;
+
+
+SAVE TRANSACTION PuntoPrestacion;
+
+
+UPDATE dbo.PRESTACIONES
+SET SERVICIO_PRESTACIONAL = 'CAMBIO TEMPORAL',
+    PESO = 3.50
+WHERE ID_REGISTRO_REL = 999999999;
+
+
+SELECT 
+    ID_REGISTRO_REL,
+    SERVICIO_PRESTACIONAL,
+    PESO
+FROM dbo.PRESTACIONES
+WHERE ID_REGISTRO_REL = 999999999;
+
+ROLLBACK TRANSACTION PuntoPrestacion;
+
+
+SELECT 
+    ID_REGISTRO_REL,
+    SERVICIO_PRESTACIONAL,
+    PESO
+FROM dbo.PRESTACIONES
+WHERE ID_REGISTRO_REL = 999999999;
+
+COMMIT;
