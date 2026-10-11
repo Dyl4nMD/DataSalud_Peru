@@ -100,8 +100,7 @@ Estos valores corresponden a las pruebas descritas en el informe académico y no
 ```text
 DataSalud_Peru/
 ├── README.md
-├── datasets/
-│   └── README.md                  # Fuentes e instrucciones de descarga
+├── datasets/                      # Archivos de datos en formato XLSX
 ├── sql_server/                    # DDL, procedimientos, triggers y pruebas
 ├── mongodb/                       # Script de migración y consultas CRUD
 ├── data_warehouse/                # Modelo dimensional, ETL y validaciones
